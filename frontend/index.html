@@ -1,101 +1,188 @@
 <!DOCTYPE html>
-
 <html>
 <head>
     <title>Feedback Portal</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-</head>
-<body style="font-family: Arial; padding: 20px;">
-
-```
-<h2>Submit Feedback</h2>
-
-<input id="name" placeholder="Your Name" /><br><br>
-<input id="feedback" placeholder="Your Feedback" /><br><br>
-<button onclick="submitFeedback()">Submit</button>
-
-<hr>
-
-<h3>Upload Feedback File</h3>
-
-<input type="file" id="fileInput" />
-<button onclick="uploadFile()">Upload Document</button>
-
-<hr>
-
-<h3>Feedback List</h3>
-<ul id="list"></ul>
-```
-
-<script>
-
-// 🔴 IMPORTANT: Replace with your Function App URL
-const BASE_URL = "https://capstone-sarthak-funcapp-hrcwc7e0gnf3fnef.centralindia-01.azurewebsites.net";
-
-async function submitFeedback() {
-    const name = document.getElementById("name").value;
-    const feedback = document.getElementById("feedback").value;
-
-    if (!name || !feedback) {
-        alert("Please enter both name and feedback");
-        return;
-    }
-
-    await fetch(`${BASE_URL}/feedback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, feedback })
-    });
-
-    document.getElementById("name").value = "";
-    document.getElementById("feedback").value = "";
-
-    loadFeedback();
-}
-
-async function loadFeedback() {
-    const res = await fetch(`${BASE_URL}/feedback`);
-    const data = await res.json();
-
-    const list = document.getElementById("list");
-    list.innerHTML = "";
-
-    data.forEach(item => {
-        const li = document.createElement("li");
-
-        if (item.type === "document") {
-            li.innerText = `${item.name} (Rating: ${item.rating}) → ${item.feedback}`;
-        } else {
-            li.innerText = `${item.name}: ${item.feedback}`;
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
         }
 
-        list.appendChild(li);
-    });
-}
+        input, button {
+            padding: 10px;
+            margin: 6px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
 
-async function uploadFile() {
-    const file = document.getElementById("fileInput").files[0];
+        button {
+            cursor: pointer;
+        }
 
-    if (!file) {
-        alert("Please select a file");
-        return;
-    }
+        hr {
+            margin: 24px 0;
+        }
 
-    const text = await file.text();
+        #status {
+            margin: 12px 0;
+            font-weight: bold;
+        }
 
-    await fetch(`${BASE_URL}/upload`, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: text
-    });
+        ul {
+            padding-left: 20px;
+        }
 
-    loadFeedback();
-}
+        li {
+            margin: 8px 0;
+        }
 
-// Load data on page load
-loadFeedback();
+        .row {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Submit Feedback</h2>
 
-</script>
+    <div class="row">
+        <input id="name" placeholder="Your Name" />
+    </div>
+    <div class="row">
+        <input id="feedback" placeholder="Your Feedback" />
+    </div>
+    <button onclick="submitFeedback()">Submit</button>
 
+    <div id="status"></div>
+
+    <hr>
+
+    <h3>Upload Feedback File</h3>
+
+    <input type="file" id="fileInput" />
+    <button onclick="uploadFile()">Upload Document</button>
+
+    <hr>
+
+    <h3>Feedback List</h3>
+    <ul id="list"></ul>
+
+    <script>
+        const BASE_URL = "https://capstone-sarthak-funcapp-hrcwc7e0gnf3fnef.centralindia-01.azurewebsites.net/api";
+
+        const statusEl = document.getElementById("status");
+
+        function setStatus(message, isError = false) {
+            statusEl.textContent = message;
+            statusEl.style.color = isError ? "crimson" : "green";
+        }
+
+        async function submitFeedback() {
+            const name = document.getElementById("name").value.trim();
+            const feedback = document.getElementById("feedback").value.trim();
+
+            if (!name || !feedback) {
+                alert("Please enter both name and feedback");
+                return;
+            }
+
+            try {
+                setStatus("Submitting feedback...");
+                const res = await fetch(`${BASE_URL}/feedback`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name, feedback })
+                });
+
+                if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(`Submit failed: ${res.status} ${text}`);
+                }
+
+                document.getElementById("name").value = "";
+                document.getElementById("feedback").value = "";
+
+                setStatus("Feedback submitted successfully.");
+                await loadFeedback();
+            } catch (err) {
+                console.error(err);
+                setStatus(err.message || "Error submitting feedback", true);
+            }
+        }
+
+        async function loadFeedback() {
+            try {
+                const res = await fetch(`${BASE_URL}/feedback`);
+
+                if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(`Load failed: ${res.status} ${text}`);
+                }
+
+                const data = await res.json();
+                const list = document.getElementById("list");
+                list.innerHTML = "";
+
+                if (!Array.isArray(data) || data.length === 0) {
+                    const li = document.createElement("li");
+                    li.innerText = "No feedback yet.";
+                    list.appendChild(li);
+                    return;
+                }
+
+                data.forEach(item => {
+                    const li = document.createElement("li");
+
+                    if (item.type === "document") {
+                        li.innerText = `${item.name || "Unknown"} (Rating: ${item.rating || "N/A"}) - ${item.feedback || ""}`;
+                    } else {
+                        li.innerText = `${item.name || "Unknown"}: ${item.feedback || ""}`;
+                    }
+
+                    list.appendChild(li);
+                });
+            } catch (err) {
+                console.error(err);
+                setStatus(err.message || "Error loading feedback", true);
+            }
+        }
+
+        async function uploadFile() {
+            const fileInput = document.getElementById("fileInput");
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert("Please select a file");
+                return;
+            }
+
+            try {
+                setStatus("Uploading file...");
+                const text = await file.text();
+
+                const res = await fetch(`${BASE_URL}/upload`, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain" },
+                    body: text
+                });
+
+                if (!res.ok) {
+                    const responseText = await res.text();
+                    throw new Error(`Upload failed: ${res.status} ${responseText}`);
+                }
+
+                fileInput.value = "";
+                setStatus("File uploaded successfully.");
+                await loadFeedback();
+            } catch (err) {
+                console.error(err);
+                setStatus(err.message || "Error uploading file", true);
+            }
+        }
+
+        loadFeedback();
+    </script>
 </body>
 </html>
