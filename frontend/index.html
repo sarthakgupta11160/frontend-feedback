@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Feedback Portal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body style="font-family: Arial; padding: 20px;">
+
+```
+<h2>Submit Feedback</h2>
+
+<input id="name" placeholder="Your Name" /><br><br>
+<input id="feedback" placeholder="Your Feedback" /><br><br>
+<button onclick="submitFeedback()">Submit</button>
+
+<hr>
+
+<h3>Upload Feedback File</h3>
+
+<input type="file" id="fileInput" />
+<button onclick="uploadFile()">Upload Document</button>
+
+<hr>
+
+<h3>Feedback List</h3>
+<ul id="list"></ul>
+```
+
+<script>
+
+// 🔴 IMPORTANT: Replace with your Function App URL
+const BASE_URL = "https://capstone-sarthak-funcapp-hrcwc7e0gnf3fnef.centralindia-01.azurewebsites.net";
+
+async function submitFeedback() {
+    const name = document.getElementById("name").value;
+    const feedback = document.getElementById("feedback").value;
+
+    if (!name || !feedback) {
+        alert("Please enter both name and feedback");
+        return;
+    }
+
+    await fetch(`${BASE_URL}/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, feedback })
+    });
+
+    document.getElementById("name").value = "";
+    document.getElementById("feedback").value = "";
+
+    loadFeedback();
+}
+
+async function loadFeedback() {
+    const res = await fetch(`${BASE_URL}/feedback`);
+    const data = await res.json();
+
+    const list = document.getElementById("list");
+    list.innerHTML = "";
+
+    data.forEach(item => {
+        const li = document.createElement("li");
+
+        if (item.type === "document") {
+            li.innerText = `${item.name} (Rating: ${item.rating}) → ${item.feedback}`;
+        } else {
+            li.innerText = `${item.name}: ${item.feedback}`;
+        }
+
+        list.appendChild(li);
+    });
+}
+
+async function uploadFile() {
+    const file = document.getElementById("fileInput").files[0];
+
+    if (!file) {
+        alert("Please select a file");
+        return;
+    }
+
+    const text = await file.text();
+
+    await fetch(`${BASE_URL}/upload`, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: text
+    });
+
+    loadFeedback();
+}
+
+// Load data on page load
+loadFeedback();
+
+</script>
+
+</body>
+</html>
